@@ -48,15 +48,18 @@ prior.par = function(log = TRUE, theta){
 
 
 #Posterior
+#Posterior of latent states is the joint likelihood of states and spiketrain 
 post.x = function(log = TRUE, x.data,n.data,i.data, theta) {
-  #log(posterior)  = log(likelihood) + log(prior)
-  result = like(log = TRUE, x.data = x.data, n.data = n.data, i.data = i.data, theta = theta, delta = 1) #+ prior.x(log = TRUE, x.data = x.data)
+  result = like(log = TRUE, x.data = x.data, n.data = n.data, i.data = i.data, theta = theta, delta = 1)
 
   if (log) {return(result)}
   else {return(exp(result))}
 }
 
+#Posterior of theta 
+#with flat priors N(0,sd=10)
 post.theta = function(log=TRUE, x.data,n.data, i.data,theta, beta=beta.fix, sigma=sigma.fix) {
+	#log(posterior) = log(likelihood) + log(prior)
 	results = like(log=TRUE, x.data = x.data,n.data = n.data,i.data = i.data, theta = theta,delta = 1) + prior.par(log = TRUE, theta = theta)
 
 	if(log){
@@ -69,6 +72,7 @@ post.theta = function(log=TRUE, x.data,n.data, i.data,theta, beta=beta.fix, sigm
 
 
 #Expectation and Variance of Latent states xk's
+#Getting mean vector of xk , E(xk)
 E.x = function(theta, i.data){
   mu = theta[1]
   phi = tanh(theta[2])
@@ -87,6 +91,7 @@ E.x = function(theta, i.data){
 	return(exp.x)
 }
 
+#Getting variance vector of xk , Var(xk)
 V.x <- function(theta, n,sigma = sigma.fix) {
   phi = tanh(theta[2])
   fixed.var <- (sigma^2) / (1 - phi^2)
@@ -96,6 +101,8 @@ V.x <- function(theta, n,sigma = sigma.fix) {
 }
 
 #Tensors for states and parameters 
+
+#Tensor for states, derived from expected Fisher information matrix 
 tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=1){
 	mu = theta[1]
 	phi = tanh(theta[2])
@@ -116,6 +123,7 @@ tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=
     return(tensor)
 }
 
+#Tensor for theta, derivded from expected Fisher information matrix 
 tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,i.data,delta = 1){
  	temp1 = 0
 	mu = theta[1]
@@ -138,7 +146,9 @@ tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,
 	return(matrix(c(temp1, 0,0,0,temp2,subsup,0,subsup,temp3),nrow = 3, byrow = TRUE))
 }
 
+
 #Derivatives 
+
 #Derivative of posterior w.r.t to X
 Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix, delta = 1){
 	mu = theta[1]
@@ -175,8 +185,7 @@ Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 Ham.x = function(x.data, n.data, i.data, theta, aux, Xten, Xten.inv){
 
 	D = length(n.data)
-	#Hamiltonian of states 
-	#-log(posterior)
+
 	Ltemp     = -post.x(log = TRUE,x.data = x.data,n.data=n.data, i.data=i.data,theta= theta)
 	logtemp   = 0.5 * (D*log(2*pi) + determinant(Xten,logarithm=TRUE)$modulus)
 	potential = Ltemp + logtemp
@@ -200,7 +209,8 @@ Ham.par = function(x.data, n.data, i.data, theta, aux, Parten,Parten.inv){
 
 
 #PDE's of the Hamiltonian for latent states 
-#Partial derivative of the hamiltonian of states w.r.t states   
+
+#Partial derivatives of the hamiltonian of states w.r.t states   
 Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta.fix,delta = 1){
 	mu = theta[1]
 	phi = tanh(theta[2])
@@ -217,22 +227,16 @@ Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta
 	for (ii in 2:length(x.data)){
 		matDeriv[ii] = 0.5* diag.temp[ii] * (beta^3) * exp(mu + beta * x.data[ii]) * delta 
 	}
-	#matDeriv = 1/2 trace()
-
-
 
 	#3rd term 
 	kinDeriv    = c()
 	kinDeriv[1] = 0
 
-
 	for(jj in 2:length(x.data)){
 		kinDeriv[jj] = sum(aux* Xten.inv[,jj]) *  (beta^3) * exp(mu + beta * x.data[jj]) * delta * diag.temp[jj] * aux[jj]
 	}
-	#RMHMC
+
 	return(as.vector(-postDeriv + matDeriv - kinDeriv))
-	#HMC
-	#return(as.vector(-postDeriv))
 }
 
 #Partial derivative of the hamiltonian of theta w.r.t theta   
@@ -262,8 +266,7 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% mat.temp)))
 
 	#for alpha 
-
-
+	#dH_da = 0
 
 	#3rd term 
 	#for mu 
@@ -279,12 +282,13 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 
 
 
-#Partial derivative of auxiliary particles 
+#Partial derivative of Hamiltonians with respect to auxiliary variables
 Ham.Aux.deriv = function(aux,inv){
 	return(inv %*% as.vector(aux))
 }
 
 
+#Use leapfrog method to simulate a trajectory of Hamiltonian system
 gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.02, steps = 25){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
@@ -297,6 +301,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 	return(list(Xcandidate = x.data, aux = aux))
 }
 
+#Use leapfrog method to simulate a trajectory of Hamiltonian system
 gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.02, steps = 20){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
