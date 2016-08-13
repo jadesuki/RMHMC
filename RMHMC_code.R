@@ -9,7 +9,7 @@ library(inline)
 
 
 #setting working directory 
-setwd("~/Dropbox/RMHMC")
+setwd("~/Documents/Git/RMHMC")
 #load simulated data 
 load('sim_AUG.Rdata')
 #loading functions 
@@ -33,8 +33,8 @@ rmvnorm.rcpp <-
 
 
 #Setting data 
-spiketrain = spiketrain[1:100]
-stimulus = stimulation[1:100]
+spiketrain = spiketrain[1:2000]
+stimulus = stimulation[1:2000]
 
 
 #Initialization of Markov Chain 
@@ -45,7 +45,7 @@ sigma.fix = 0.1
 
 theta.mat = matrix(rep(0, 3 * niter), nrow = 3, ncol = niter) #ordering: mu, phi (gamma), alpha
 state.mat = matrix(rep(0,length(stimulus)+1),nrow = length(stimulus)+1,ncol=niter)
-theta.mat[,1] = c(-1, -1.8, 2)
+theta.mat[,1] = c(-5, -1.8, 2)
 state.mat[,1] = E.x(theta = theta.mat[,1], i.data = stimulus)
 
 

@@ -115,7 +115,7 @@ tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=
 	last = (beta^2) * exp(mu + beta * statevec[n])*delta + 1/(sigma^2)
 	diag.element = c(first,rest,last)
 
-	supper = rep(-1/(sigma^2), n-1)
+	supper = rep(-phi/(sigma^2), n-1)
     sub    = supper 
 
     tensor = triDiag(diag.element, supper, sub, nrow = n, ncol =n)
