@@ -38,7 +38,7 @@ stimulus = stimulation[1:2000]
 
 
 #Initialization of Markov Chain 
-niter = 10000
+niter = 1000
 
 beta.fix = 1
 sigma.fix = 0.1
