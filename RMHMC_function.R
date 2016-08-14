@@ -35,6 +35,7 @@ prior.x = function(log = TRUE, x.data){
   	return(exp(priors))
   }
 }
+
 #flat priors of theta 
 prior.par = function(log = TRUE, theta){
 	priors = sum(dnorm(theta, mean = 0 , sd = 10, log = TRUE))
@@ -154,12 +155,14 @@ Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
-	
+	n = length(x.data)
+
 	results = c()
 	results[1] = (phi * x.data[2] - alpha * phi * i.data[1] - x.data[1])/(sigma^2)
-	for (ii in 2:length(x.data)){
-		results[ii] =  -(x.data[ii] - phi * x.data[ii-1] - alpha*i.data[ii-1])/(sigma^2) + beta * (n.data[ii-1] - exp(mu + beta * x.data[ii-1]) * delta)
+	for (ii in 2:(n-1)){
+		results[ii] =  (phi*x.data[ii+1] - (phi^2)*x.data[ii] - phi*alpha*i.data[ii]-x.data[ii] + phi*x.data[ii-1] + alpha*i.data[ii-1]) + beta * (n.data[ii-1]) - beta*exp(mu + beta * x.data[ii-1]) * delta
 	}
+	results[n] = (-x.data[n] + phi*x.data[n-1] + alpha * i.data[n-1])/(sigma^2) + beta*n.data[ii-1] - beta*exp(mu + beta*x.data[n]) * delta 
 	return(results)
 }
 
@@ -169,15 +172,16 @@ Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 	phi   = tanh(theta[2])
 	alpha = theta[3]
 
+	n = length(x.data)
 	Mu.der    = sum(n.data - exp(mu + beta * x.data[-1]) * delta)
 
-	temp1 = sum(i.data * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data))
-	Alpha.der = temp1 / (sigma^2)
-
-	temp2 = sum(x.data[-length(x.data)] * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data ))
+	temp1 = sum(x.data[-length(x.data)] * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data ))
 	Gamma.der = (1 - phi^2) * temp2 / (sigma^2) - phi + x.data[1]^2 * phi * (1-phi^2) / (sigma^2)
 
-	return(c(Mu.der, Alpha.der, Gamma.der))
+	temp2 = sum(i.data * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data))
+	Alpha.der = temp1 / (sigma^2)
+
+	return(c(Mu.der, Gamma.der, Alpha.der))
 }
 
 #Hamiltonians
@@ -224,6 +228,7 @@ Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta
 	matDeriv[1] = 0
 
 	diag.temp = diag(Xten.inv)
+	
 	for (ii in 2:length(x.data)){
 		matDeriv[ii] = 0.5* diag.temp[ii] * (beta^3) * exp(mu + beta * x.data[ii]) * delta 
 	}
