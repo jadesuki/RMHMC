@@ -260,7 +260,7 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 	deriv.mu = 0.5 * Parten.inv[1,1] * temp.mu 
 
 	#for gamma
-	temp.22 = 4*phi-2*n*phi-2*(1-phi)*sum(meanvec[1:(n-1)]^2) * (1-phi^2)/(sigma^2)
+	temp.22 = (4*phi-2*n*phi-2*phi*sum(meanvec[1:(n-1)]^2) /(sigma^2)) * (1-phi^2)
 	temp.23 = -2*phi *sum(meanvec[1:(n-1)] * i.data) * (1-phi^2) / (sigma^2)
 	mat.temp = matrix(c(0,0,0,0,temp.22,temp.23,0,temp.23,0),nrow=3)
 	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% mat.temp)))
