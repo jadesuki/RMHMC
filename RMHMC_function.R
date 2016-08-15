@@ -117,7 +117,7 @@ tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=
 	diag.element = c(first,rest,last)
 
 	supper = rep(-phi/(sigma^2), n-1)
-    sub    = supper 
+  sub    = supper 
 
     tensor = triDiag(diag.element, supper, sub, nrow = n, ncol =n)
 
@@ -176,10 +176,10 @@ Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 	Mu.der    = sum(n.data - exp(mu + beta * x.data[-1]) * delta)
 
 	temp1 = sum(x.data[-length(x.data)] * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data ))
-	Gamma.der = (1 - phi^2) * temp2 / (sigma^2) - phi + x.data[1]^2 * phi * (1-phi^2) / (sigma^2)
+	Gamma.der = (1 - phi^2) * temp1 / (sigma^2) - phi + x.data[1]^2 * phi * (1-phi^2) / (sigma^2)
 
 	temp2 = sum(i.data * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data))
-	Alpha.der = temp1 / (sigma^2)
+	Alpha.der = temp2 / (sigma^2)
 
 	return(c(Mu.der, Gamma.der, Alpha.der))
 }
@@ -253,34 +253,78 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 
 	#1st term 
 	postDeriv = Parder(x.data = x.data, n.data = n.data, i.data=i.data, theta=theta)
-
-	#2nd term
-	#for mu 
+  
+	#Finding tensor derivative matrix 
+	
+	#For mu
 	temp.mu = 0
-	#(1,1)
 	for (ii in 1:length(meanvec)){
-		cur.val = exp(mu + beta * meanvec[ii] + (beta^2) * varvec[ii]/2) * delta
-		temp.mu = temp.mu + cur.val
+	  cur.val = exp(mu + beta * meanvec[ii] + (beta^2) * varvec[ii]/2) * delta
+	  temp.mu = temp.mu + cur.val
 	}
-	deriv.mu = 0.5 * Parten.inv[1,1] * temp.mu 
+	dGdmu = matrix(c(temp.mu,0,0,0,0,0,0,0,0),nrow = 3, byrow = TRUE)
+	
+	#For gamma
+	temp1 = exp(mu + beta*meanvec + (beta^2) * varvec/2)
+	temp2 = -beta * (sigma^2) * phi / ((1-phi^2)^2)
+	der = c()
+	der[1:2] = temp1[1:2] * temp2 * (1-phi^2)
+	
+	tempdir = c(1)
+	for(jj in 3:(n-1)){
+	  tempdir = c(tempdir,(jj-1)*phi^(jj-2))
+	}
+	
+	dExdgamma = c(0,0)
+	for(jj in 3:n){
+	  dExdgamma[jj] = alpha*(sum(tempdir[1:(jj-2)] * rev(i.data[1:(jj-2)])))
+	}
+	
+	for(jj in 3:n){
+	  der[jj] = temp1[jj] * delta * (beta * dExdgamma[jj] + temp2)
+	}
 
-	#for gamma
-	temp.22 = (4*phi-2*n*phi-2*phi*sum(meanvec[1:(n-1)]^2) /(sigma^2)) * (1-phi^2)
-	temp.23 = -2*phi *sum(meanvec[1:(n-1)] * i.data) * (1-phi^2) / (sigma^2)
-	mat.temp = matrix(c(0,0,0,0,temp.22,temp.23,0,temp.23,0),nrow=3)
-	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% mat.temp)))
+	
+	temp.11 = (1-phi^2) * sum(der) 
+	temp.22 = (4*phi-2*n*phi-4*phi*sum(meanvec[1:(n-1)] * dExdgamma[1:(n-1)]) /(sigma^2)) * (1-phi^2)
+	temp.23 = temp.32= -2*phi *sum(dExdgamma[1:(n-1)] * i.data) * (1-phi^2) / (sigma^2)
+	
+	dGdgamma = matrix(c(temp.11,0,0,0,temp.22,temp.23,0,temp.32,0),nrow=3,byrow=TRUE)
 
-	#for alpha 
-	#dH_da = 0
+	#For alpha
+	phi.vec = c(1)
+	for (ii in 1:length(i.data)){
+	  phi.vec = c(phi.vec, phi^ii)
+	}
+	dExdalpha = c(0)
+	for (jj in 1:length(i.data)){
+	  cur.elements = (phi.vec[1:jj])*rev(i.data[1:jj])
+	  cur.expec = sum(cur.elements)
+  	dExdalpha = c(dExdalpha, cur.expec)
+	}
+  
+	tempalpha=c()
+	for(kk in 1:n){
+	  tempalpha[kk] = temp1[kk] * delta * (beta *dExdalpha[kk])
+	}
+	temp.11.alpha = sum(tempalpha)
+	temp.22.alpha = 2*(1-phi^2)*sum(meanvec[1:(n-1)] * dExdalpha[1:(n-1)]) / (sigma^2)
+	temp.23.alpha = temp.32.alpha = (1-phi^2)*sum(meanvec[1:(n-1)] * dExdalpha[1:(n-1)]) / (sigma^2)
+	dGdalpha = matrix(c(temp.11.alpha,0,0,0,temp.22.alpha,temp.23.alpha,0,temp.32.alpha,0),nrow=3,byrow= TRUE)
+	
+	#2nd term
+  deriv.mu = 0.5 * sum(diag((Parten.inv %*% dGdmu)))
+	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% dGdgamma)))
+  deriv.alpha = 0.5 * sum(diag((Parten.inv %*% dGdalpha)))
+
 
 	#3rd term 
-	#for mu 
-	mu.temp3 = 0.5* sum(aux*Parten.inv[,1]) * temp.mu * Parten.inv[1,1] * aux[1]
-	gamma.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% mat.temp %*% Parten.inv %*% as.vector(aux)
+	mu.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdmu %*% Parten.inv %*% as.vector(aux)
+	gamma.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdgamma %*% Parten.inv %*% as.vector(aux)
+  alpha.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdalpha %*% Parten.inv %*% as.vector(aux)
 
-
-	matDeriv = c(deriv.mu, deriv.gamma, 0)
-	something = c(mu.temp3, gamma.temp3, 0)
+	matDeriv = c(deriv.mu, deriv.gamma, deriv.alpha)
+	something = c(mu.temp3, gamma.temp3, alpha.temp3)
 
 	return(as.vector(-postDeriv + matDeriv - something))
 }
@@ -307,7 +351,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 }
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 20){
+gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.02, steps = 10){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		aux.half = aux - 0.5 * step.size * Ham.Parderiv(x.data=x.data,n.data=n.data,i.data=i.data,meanvec = meanvec,varvec = varvec,theta=theta,aux = aux, Parten = Parten,Parten.inv = Parten.inv)

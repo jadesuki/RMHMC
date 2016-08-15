@@ -33,8 +33,8 @@ rmvnorm.rcpp <-
 
 
 #Setting data 
-spiketrain = spiketrain[1:2000]
-stimulus = stimulation[1:2000]
+spiketrain = spiketrain[1:100]
+stimulus = stimulation[1:100]
 
 
 #Initialization of Markov Chain 
@@ -45,7 +45,7 @@ sigma.fix = 0.1
 
 theta.mat = matrix(rep(0, 3 * niter), nrow = 3, ncol = niter) #ordering: mu, phi (gamma), alpha
 state.mat = matrix(rep(0,length(stimulus)+1),nrow = length(stimulus)+1,ncol=niter)
-theta.mat[,1] = c(-5, -1.8, 2)
+theta.mat[,1] = c(-5, -1.8, 1.5)
 state.mat[,1] = E.x(theta = theta.mat[,1], i.data = stimulus)
 
 
@@ -59,7 +59,7 @@ for(iter in 2:niter){
 
 	#Part 1: Update latent states
 	#Getting tensor of states 
-	tensor.state = tensorX(theta = current.theta, statevec = latents[1:length(state.mat[,1])])
+	tensor.state = tensorX(theta = current.theta, statevec = current.state)
 	#Inverse of the tensor 
 	inv.tensor.state = chol2inv(chol(tensor.state))
   	
@@ -113,7 +113,7 @@ for(iter in 2:niter){
 
 	#Getting new tenwor and its inverse 
 	new.tensor.theta = tensorPar(theta = candidate.Par, meanvec  = new.mean.states, varvec = new.var.states,i.data = stimulus)
-    new.inv.tensor.theta = solve(new.tensor.theta)
+  new.inv.tensor.theta = solve(new.tensor.theta)
   
   	#Evaluate Hamiltonian function based on current theta and candidate theta 
 	logtemp4 = Ham.par(x.data = current.state, n.data = spiketrain, i.data = stimulus, theta = candidate.Par,aux = candidate.aux,Parten = new.tensor.theta,Parten.inv = new.inv.tensor.theta)
