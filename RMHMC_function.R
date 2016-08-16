@@ -200,9 +200,9 @@ Ham.x = function(x.data, n.data, i.data, theta, aux, Xten, Xten.inv){
 	n = length(n.data)
 
 	Ltemp     = -post.x(log = TRUE,x.data = x.data,n.data=n.data, i.data=i.data,theta= theta)
-	logtemp   = 0.5 * log(((2*pi)^n) * det(Xten))
+	logtemp   = 0.5 * (n * log(2*pi) + determinant(Xten, logarithm=TRUE)$modulus)
 	potential = Ltemp + logtemp
-	kinetic   = 0.5 * as.vector(t(aux)) %*% Xten.inv %*% as.vector(aux)
+	kinetic   = 0.5 * as.vector(aux) %*% Xten.inv %*% as.vector(aux)
 
 	return(potential + kinetic)
 }
@@ -351,7 +351,7 @@ Ham.Aux.deriv = function(aux,inv){
 
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.02, steps = 25){
+gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.005, steps = 10){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		(aux.half = aux - 0.5 * step.size * Ham.Xderiv(x.data = x.data, n.data = n.data, i.data = i.data, theta=theta,aux = aux,Xten = Xten, Xten.inv = Xten.inv))
@@ -364,7 +364,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 }
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 15){
+gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 10){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		aux.half = aux - 0.5 * step.size * Ham.Parderiv(x.data=x.data,n.data=n.data,i.data=i.data,meanvec = meanvec,varvec = varvec,theta=theta,aux = aux, Parten = Parten,Parten.inv = Parten.inv)

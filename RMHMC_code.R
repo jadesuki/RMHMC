@@ -33,19 +33,19 @@ rmvnorm.rcpp <-
 
 
 #Setting data 
-spiketrain = spiketrain[1:2000]
-stimulus = stimulation[1:2000]
+spiketrain = spiketrain[1:1000]
+stimulus = stimulation[1:1000]
 
 
 #Initialization of Markov Chain 
-niter = 1000
+niter = 2000
 
 beta.fix = 1
 sigma.fix = 0.1
 
 theta.mat = matrix(rep(0, 3 * niter), nrow = 3, ncol = niter) #ordering: mu, phi (gamma), alpha
 state.mat = matrix(rep(0,length(stimulus)+1),nrow = length(stimulus)+1,ncol=niter)
-theta.mat[,1] = c(-5, -1.8, 2.1)
+theta.mat[,1] = c(-4, -1.8, 2.1)
 state.mat[,1] = E.x(theta = theta.mat[,1], i.data = stimulus)
 
 
@@ -63,22 +63,22 @@ for(iter in 2:niter){
 	#Inverse of the tensor 
 	inv.tensor.state = chol2inv(chol(tensor.state))
   	
-  	#Generate auxiliary particles 
+  #Generate auxiliary particles 
 	current.aux = rmvnorm.rcpp(1,rep(0,length(current.state)),tensor.state)
 
 	#running leapfrog method to generate candidates 
 	leapfrog.X = gen.X(x.data = current.state, n.data=spiketrain, i.data = stimulus, theta= current.theta,aux = current.aux, Xten = tensor.state, Xten.inv=inv.tensor.state)
-	(candidate.X = leapfrog.X$Xcandidate)
+	candidate.X = leapfrog.X$Xcandidate
 	candidate.p = leapfrog.X$aux 
 
 	#Finding new tensor regarding candidates of latent states 
 	new.tensor.state = tensorX(theta = current.theta, statevec = candidate.X)
 	#Finding inverse of the new tensor 
-	new.inv.tensort.state = chol2inv(chol(new.tensor.state))
+	new.inv.tensor.state = chol2inv(chol(new.tensor.state))
 	
 	#Evaluate Hamiltonian function based on current states and  candidate states 
-	logtemp1 = Ham.x(x.data = candidate.X,  n.data = spiketrain, i.data = stimulus, theta = current.theta, aux = candidate.p, Xten= new.tensor.state, Xten.inv = new.inv.tensort.state )
-	logtemp2 = Ham.x(x.data = current.theta,n.data = spiketrain, i.data = stimulus, theta = current.theta, aux = current.aux, Xten=tensor.state,   Xten.inv = inv.tensor.state)
+	logtemp1 = Ham.x(x.data = candidate.X,  n.data = spiketrain, i.data = stimulus, theta = current.theta, aux = candidate.p, Xten= new.tensor.state, Xten.inv = new.inv.tensor.state )
+	logtemp2 = Ham.x(x.data = current.state,n.data = spiketrain, i.data = stimulus, theta = current.theta, aux = current.aux, Xten=tensor.state,   Xten.inv = inv.tensor.state)
 
 	logtemp3 = logtemp2 - logtemp1
 	#Doing metropolis update 
