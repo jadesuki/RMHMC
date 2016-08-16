@@ -197,7 +197,7 @@ Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 #Hamiltonian for states 
 Ham.x = function(x.data, n.data, i.data, theta, aux, Xten, Xten.inv){
 
-	D = length(n.data)
+	n = length(n.data)
 
 	Ltemp     = -post.x(log = TRUE,x.data = x.data,n.data=n.data, i.data=i.data,theta= theta)
 	logtemp   = 0.5 * log(((2*pi)^n) * det(Xten))
@@ -234,21 +234,22 @@ Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta
 
 	#2nd
 	matDeriv = c()
-	diat.temp = c(0,(beta^3) * exp(mu + beta * x.data[-1])*delta)
+	matDeriv[1] = 0
+	diag.temp = c(0,(beta^3) * exp(mu + beta * x.data[-1])*delta)
 
-	#ii row or column of diag.mat is the diagonal of dGdx_i
-	diag.mat  = diag(diag.temp, nrow = length(x.data))
-
-
-	for (ii in 1:length(x.data)){
-		matDeriv[ii] = 0.5* sum(diag( Xten.inv %*% diag(diag.mat[,ii],nrow = length(x.data)))) 
+	for (ii in 2:length(x.data)){
+		matDeriv[ii] = 0.5* diag(Xten.inv)[ii] * diag.temp[ii]
 	}
 
 	#3rd term 
 	kinDeriv    = c()
+  kinDeriv[1] = 0
+  
+	for(jj in 2:length(x.data)){
 
-	for(jj in 1:length(x.data)){
-		kinDeriv[jj] = 0.5 * as.vector(aux) %*% Parten.inv %*% diag(diag.mat[,ii],nrow = length(x.data)) %*% Parten.inv %*% as.vector(aux)
+	  temp = sum(aux*Xten.inv[,jj]) * diag.temp[jj] * Xten.inv[jj,] 
+    temp22 = temp %*% as.vector(aux)
+		kinDeriv[jj] = 0.5 * temp22
 	}
 
 	return(as.vector(-postDeriv + matDeriv - kinDeriv))
@@ -325,15 +326,15 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 	dGdalpha = matrix(c(temp.11.alpha,0,0,0,temp.22.alpha,temp.23.alpha,0,temp.32.alpha,0),nrow=3,byrow= TRUE)
 	
 	#2nd term
-    deriv.mu    = 0.5 * sum(diag((Parten.inv %*% dGdmu)))
+  deriv.mu    = 0.5 * sum(diag((Parten.inv %*% dGdmu)))
 	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% dGdgamma)))
-    deriv.alpha = 0.5 * sum(diag((Parten.inv %*% dGdalpha)))
+  deriv.alpha = 0.5 * sum(diag((Parten.inv %*% dGdalpha)))
 
 
 	#3rd term 
 	mu.temp3    = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdmu %*% Parten.inv %*% as.vector(aux)
 	gamma.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdgamma %*% Parten.inv %*% as.vector(aux)
-    alpha.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdalpha %*% Parten.inv %*% as.vector(aux)
+  alpha.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdalpha %*% Parten.inv %*% as.vector(aux)
 
 	matDeriv = c(deriv.mu, deriv.gamma, deriv.alpha)
 	kinDeriv = c(mu.temp3, gamma.temp3, alpha.temp3)
@@ -363,7 +364,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 }
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.02, steps = 10){
+gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.3, steps = 8){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		aux.half = aux - 0.5 * step.size * Ham.Parderiv(x.data=x.data,n.data=n.data,i.data=i.data,meanvec = meanvec,varvec = varvec,theta=theta,aux = aux, Parten = Parten,Parten.inv = Parten.inv)
