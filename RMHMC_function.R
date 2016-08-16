@@ -364,7 +364,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 }
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.3, steps = 8){
+gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 15){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		aux.half = aux - 0.5 * step.size * Ham.Parderiv(x.data=x.data,n.data=n.data,i.data=i.data,meanvec = meanvec,varvec = varvec,theta=theta,aux = aux, Parten = Parten,Parten.inv = Parten.inv)
