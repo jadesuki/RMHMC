@@ -27,18 +27,18 @@ like = function(log = TRUE, x.data, n.data , i.data ,theta, beta = beta.fix,sigm
 
 #Prior
 #flat priors of latent statex 
-prior.x = function(log = TRUE, x.data){
-  priors = sum(dnorm(x.data,mean = 0 , sd = 10, log = TRUE))
-  if (log) {
-  	return(priors)
-  }else{
-  	return(exp(priors))
-  }
-}
+#prior.x = function(log = TRUE, x.data){
+#  priors = sum(dnorm(x.data,mean = 0 , sd = 10, log = TRUE))
+#  if (log) {
+#  	return(priors)
+#  }else{
+#  	return(exp(priors))
+#  }
+#}
 
 #flat priors of theta 
-prior.par = function(log = TRUE, theta){
-	priors = sum(dnorm(theta, mean = 0 , sd = 10, log = TRUE))
+prior.par = function(log = TRUE, theta, sd.prior = 10){
+	priors = sum(dnorm(theta, mean = 0 , sd = sd.prior, log = TRUE))
 	if(log){
 		return(priors)
 	}else{
@@ -117,7 +117,7 @@ tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=
 	diag.element = c(first,rest,last)
 
 	supper = rep(-phi/(sigma^2), n-1)
-  sub    = supper 
+    sub    = supper 
 
     tensor = triDiag(diag.element, supper, sub, nrow = n, ncol =n)
 
@@ -130,17 +130,22 @@ tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
+
 	n = length(meanvec)
+
 	#(1,1)
-	
-	for (ii in 1:length(meanvec)){
-		cur.val = exp(mu + beta * meanvec[ii] + (beta^2) * varvec[ii]/2) * delta
-		temp1 = temp1 + cur.val
-	}
+	temp1 = sum(exp(mu + beta * meanvec + (beta^2) * varvec *0.5) * delta)
+	#for (ii in 1:length(meanvec)){
+	#	cur.val = exp(mu + beta * meanvec[ii] + (beta^2) * varvec[ii]/2) * delta
+	#	temp1 = temp1 + cur.val
+	#}
+
     #(2,2) 
 	temp2 = 2 * (phi^2) + n*(1-(phi^2)) + (1-(phi^2)) * sum(meanvec[1:(n-1)]^2) /(sigma^2)
+
 	#(3,3)
 	temp3 = sum(i.data^2) / (sigma^2)
+
 	#(2,3) and (3,2)
 	subsup = (1-(phi^2)) *sum(meanvec[1:(n-1)] * i.data) / (sigma^2)
 
@@ -158,11 +163,14 @@ Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 	n = length(x.data)
 
 	results = c()
+	#k=0
 	results[1] = (phi * x.data[2] - alpha * phi * i.data[1] - x.data[1])/(sigma^2)
+	#k=1,...,k-1
 	for (ii in 2:(n-1)){
-		results[ii] =  (phi*x.data[ii+1] - (phi^2)*x.data[ii] - phi*alpha*i.data[ii]-x.data[ii] + phi*x.data[ii-1] + alpha*i.data[ii-1]) + beta * (n.data[ii-1]) - beta*exp(mu + beta * x.data[ii-1]) * delta
+		results[ii] =  (phi*x.data[ii+1] - (phi^2)*x.data[ii] - phi*alpha*i.data[ii]-x.data[ii] + phi*x.data[ii-1] + alpha*i.data[ii-1]) + beta * (n.data[ii-1]) - beta*exp(mu + beta * x.data[ii]) * delta
 	}
-	results[n] = (-x.data[n] + phi*x.data[n-1] + alpha * i.data[n-1])/(sigma^2) + beta*n.data[ii-1] - beta*exp(mu + beta*x.data[n]) * delta 
+	#k=K
+	results[n] = (-x.data[n] + phi*x.data[n-1] + alpha * i.data[n-1])/(sigma^2) + beta*n.data[n-1] - beta*exp(mu + beta*x.data[n]) * delta 
 	return(results)
 }
 
@@ -173,9 +181,10 @@ Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 	alpha = theta[3]
 
 	n = length(x.data)
+
 	Mu.der    = sum(n.data - exp(mu + beta * x.data[-1]) * delta)
 
-	temp1 = sum(x.data[-length(x.data)] * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data ))
+	temp1 = sum(x.data[-n] * (x.data[-1] - phi * x.data[-n] - alpha * i.data ))
 	Gamma.der = (1 - phi^2) * temp1 / (sigma^2) - phi + x.data[1]^2 * phi * (1-phi^2) / (sigma^2)
 
 	temp2 = sum(i.data * (x.data[-1] - phi * x.data[-length(x.data)] - alpha * i.data))
@@ -191,7 +200,7 @@ Ham.x = function(x.data, n.data, i.data, theta, aux, Xten, Xten.inv){
 	D = length(n.data)
 
 	Ltemp     = -post.x(log = TRUE,x.data = x.data,n.data=n.data, i.data=i.data,theta= theta)
-	logtemp   = 0.5 * (D*log(2*pi) + determinant(Xten,logarithm=TRUE)$modulus)
+	logtemp   = 0.5 * log(((2*pi)^n) * det(Xten))
 	potential = Ltemp + logtemp
 	kinetic   = 0.5 * as.vector(t(aux)) %*% Xten.inv %*% as.vector(aux)
 
@@ -203,7 +212,7 @@ Ham.par = function(x.data, n.data, i.data, theta, aux, Parten,Parten.inv){
 	
 
 	Ltemp     = -post.theta(log = TRUE, x.data=x.data, n.data=n.data, i.data = i.data, theta = theta)
-	logtemp   = 0.5 * (3 * log(2*pi) + determinant(Parten,logarithm=TRUE)$modulus)
+	logtemp   = 0.5 * log(((2*pi)^3) * det(Parten))
 	potential = Ltemp + logtemp
 	kinetic = 0.5 * as.vector(t(aux)) %*% Parten.inv %*% as.vector(aux)
 
@@ -225,20 +234,21 @@ Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta
 
 	#2nd
 	matDeriv = c()
-	matDeriv[1] = 0
+	diat.temp = c(0,(beta^3) * exp(mu + beta * x.data[-1])*delta)
 
-	diag.temp = diag(Xten.inv)
-	
-	for (ii in 2:length(x.data)){
-		matDeriv[ii] = 0.5* diag.temp[ii] * (beta^3) * exp(mu + beta * x.data[ii]) * delta 
+	#ii row or column of diag.mat is the diagonal of dGdx_i
+	diag.mat  = diag(diag.temp, nrow = length(x.data))
+
+
+	for (ii in 1:length(x.data)){
+		matDeriv[ii] = 0.5* sum(diag( Xten.inv %*% diag(diag.mat[,ii],nrow = length(x.data)))) 
 	}
 
 	#3rd term 
 	kinDeriv    = c()
-	kinDeriv[1] = 0
 
-	for(jj in 2:length(x.data)){
-		kinDeriv[jj] = sum(aux* Xten.inv[,jj]) *  (beta^3) * exp(mu + beta * x.data[jj]) * delta * diag.temp[jj] * aux[jj]
+	for(jj in 1:length(x.data)){
+		kinDeriv[jj] = 0.5 * as.vector(aux) %*% Parten.inv %*% diag(diag.mat[,ii],nrow = length(x.data)) %*% Parten.inv %*% as.vector(aux)
 	}
 
 	return(as.vector(-postDeriv + matDeriv - kinDeriv))
@@ -296,11 +306,12 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 	for (ii in 1:length(i.data)){
 	  phi.vec = c(phi.vec, phi^ii)
 	}
+
 	dExdalpha = c(0)
 	for (jj in 1:length(i.data)){
 	  cur.elements = (phi.vec[1:jj])*rev(i.data[1:jj])
 	  cur.expec = sum(cur.elements)
-  	dExdalpha = c(dExdalpha, cur.expec)
+  	  dExdalpha = c(dExdalpha, cur.expec)
 	}
   
 	tempalpha=c()
@@ -310,23 +321,24 @@ Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Pa
 	temp.11.alpha = sum(tempalpha)
 	temp.22.alpha = 2*(1-phi^2)*sum(meanvec[1:(n-1)] * dExdalpha[1:(n-1)]) / (sigma^2)
 	temp.23.alpha = temp.32.alpha = (1-phi^2)*sum(meanvec[1:(n-1)] * dExdalpha[1:(n-1)]) / (sigma^2)
+
 	dGdalpha = matrix(c(temp.11.alpha,0,0,0,temp.22.alpha,temp.23.alpha,0,temp.32.alpha,0),nrow=3,byrow= TRUE)
 	
 	#2nd term
-  deriv.mu = 0.5 * sum(diag((Parten.inv %*% dGdmu)))
+    deriv.mu    = 0.5 * sum(diag((Parten.inv %*% dGdmu)))
 	deriv.gamma = 0.5 * sum(diag((Parten.inv %*% dGdgamma)))
-  deriv.alpha = 0.5 * sum(diag((Parten.inv %*% dGdalpha)))
+    deriv.alpha = 0.5 * sum(diag((Parten.inv %*% dGdalpha)))
 
 
 	#3rd term 
-	mu.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdmu %*% Parten.inv %*% as.vector(aux)
+	mu.temp3    = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdmu %*% Parten.inv %*% as.vector(aux)
 	gamma.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdgamma %*% Parten.inv %*% as.vector(aux)
-  alpha.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdalpha %*% Parten.inv %*% as.vector(aux)
+    alpha.temp3 = 0.5 * as.vector(aux) %*% Parten.inv %*% dGdalpha %*% Parten.inv %*% as.vector(aux)
 
 	matDeriv = c(deriv.mu, deriv.gamma, deriv.alpha)
-	something = c(mu.temp3, gamma.temp3, alpha.temp3)
+	kinDeriv = c(mu.temp3, gamma.temp3, alpha.temp3)
 
-	return(as.vector(-postDeriv + matDeriv - something))
+	return(as.vector(-postDeriv + matDeriv - kinDeriv))
 }
 
 
