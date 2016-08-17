@@ -1,0 +1,30 @@
+##This job will use 16 processors. Ask for 8 nodes, with two processors per node.
+#PBS -l nodes=4:ppn=2,pmem=8gb,walltime=99:59:00
+#PBS -W group_list=colony-users
+#PBS -m bae
+#PBS -M haixuw@sfu.ca
+#PBS -N RMHMC
+#PBS -o RMHMC.out
+#PBS -e RMHMC.err
+
+module load LANG/R/3.2.0
+
+echo "Running on host:" 'hostname'
+echo "Changing to directory from which script was submitted."
+cd ~/RMHMC
+echo "This job was submitted by user: $PBS_O_LOGNAME"
+echo "This job was submitted to host: $PBS_O_HOST"
+echo "This job was submitted to queue: $PBS_O_QUEUE"
+echo "PBS working directory: $PBS_O_WORKDIR"
+echo "PBS job id: $PBS_JOBID"
+echo "PBS job name: $PBS_JOBNAME"
+echo "PBS environment: $PBS_ENVIRONMENT"
+echo " "
+echo "This script is running on node `hostname` "
+echo "Job started on: " `date`
+echo $PATH
+
+####################################################
+# Commands to run the job
+
+R --vanilla -f ~/RMHMC/RMHMC_code.R
