@@ -33,12 +33,12 @@ rmvnorm.rcpp <-
 
 
 #Setting data 
-spiketrain = spiketrain[1:1000]
-stimulus = stimulation[1:1000]
+spiketrain = spiketrain[1:2000]
+stimulus = stimulation[1:2000]
 
 
 #Initialization of Markov Chain 
-niter = 2000
+niter = 10000
 
 beta.fix = 1
 sigma.fix = 0.1
