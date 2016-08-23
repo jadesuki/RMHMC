@@ -1,5 +1,5 @@
 #Joint likelihood of latent states x_{0:k} and spiketrain N_{1:k} given theta 
-like = function(log = TRUE, x.data, n.data , i.data ,theta, beta = beta.fix,sigma = sigma.fix,delta = 1) {
+like = function(log = TRUE, x.data, n.data , i.data ,theta, beta = beta.fix,sigma = sigma.fix,delta = 5) {
 
   mu = theta[1]
   phi = tanh(theta[2])
@@ -51,7 +51,7 @@ prior.par = function(log = TRUE, theta, sd.prior = 10){
 #Posterior
 #Posterior of latent states is the joint likelihood of states and spiketrain 
 post.x = function(log = TRUE, x.data,n.data,i.data, theta) {
-  result = like(log = TRUE, x.data = x.data, n.data = n.data, i.data = i.data, theta = theta, delta = 1)
+  result = like(log = TRUE, x.data = x.data, n.data = n.data, i.data = i.data, theta = theta, delta = 5)
 
   if (log) {return(result)}
   else {return(exp(result))}
@@ -61,7 +61,7 @@ post.x = function(log = TRUE, x.data,n.data,i.data, theta) {
 #with flat priors N(0,sd=10)
 post.theta = function(log=TRUE, x.data,n.data, i.data,theta, beta=beta.fix, sigma=sigma.fix) {
 	#log(posterior) = log(likelihood) + log(prior)
-	results = like(log=TRUE, x.data = x.data,n.data = n.data,i.data = i.data, theta = theta,delta = 1) + prior.par(log = TRUE, theta = theta)
+	results = like(log=TRUE, x.data = x.data,n.data = n.data,i.data = i.data, theta = theta,delta = 5) + prior.par(log = TRUE, theta = theta)
 
 	if(log){
 		return(results)
@@ -104,7 +104,7 @@ V.x <- function(theta, n,sigma = sigma.fix) {
 #Tensors for states and parameters 
 
 #Tensor for states, derived from expected Fisher information matrix 
-tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=1){
+tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=5){
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
@@ -125,7 +125,7 @@ tensorX   = function(beta = beta.fix, sigma = sigma.fix, theta, statevec, delta=
 }
 
 #Tensor for theta, derivded from expected Fisher information matrix 
-tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,i.data,delta = 1){
+tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,i.data,delta = 5){
  	temp1 = 0
 	mu = theta[1]
 	phi = tanh(theta[2])
@@ -156,7 +156,7 @@ tensorPar = function(beta = beta.fix, sigma = sigma.fix, theta, meanvec, varvec,
 #Derivatives 
 
 #Derivative of posterior w.r.t to X
-Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix, delta = 1){
+Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix, delta = 5){
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
@@ -175,7 +175,7 @@ Xder   = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix,
 }
 
 #Derivative of posterior w.r.t parameter Theta 
-Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix, delta = 1){
+Parder = function(x.data,n.data,i.data,theta,beta = beta.fix, sigma = sigma.fix, delta = 5){
 	mu    = theta[1]
 	phi   = tanh(theta[2])
 	alpha = theta[3]
@@ -224,7 +224,7 @@ Ham.par = function(x.data, n.data, i.data, theta, aux, Parten,Parten.inv){
 #PDE's of the Hamiltonian for latent states 
 
 #Partial derivatives of the hamiltonian of states w.r.t states   
-Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta.fix,delta = 1){
+Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta.fix,delta = 5){
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
@@ -256,7 +256,7 @@ Ham.Xderiv   = function(x.data, n.data, i.data,theta,aux,Xten,Xten.inv,beta=beta
 }
 
 #Partial derivative of the hamiltonian of theta w.r.t theta   
-Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Parten.inv,sigma=sigma.fix,delta = 1){
+Ham.Parderiv = function(x.data,n.data,meanvec,varvec, i.data,theta,aux,Parten,Parten.inv,sigma=sigma.fix,delta = 5){
 	mu = theta[1]
 	phi = tanh(theta[2])
 	alpha = theta[3]
@@ -351,7 +351,7 @@ Ham.Aux.deriv = function(aux,inv){
 
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.005, steps = 20){
+gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.001, steps = 10){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		(aux.half = aux - 0.5 * step.size * Ham.Xderiv(x.data = x.data, n.data = n.data, i.data = i.data, theta=theta,aux = aux,Xten = Xten, Xten.inv = Xten.inv))
@@ -364,7 +364,7 @@ gen.X = function(x.data, n.data,i.data,theta, aux, Xten, Xten.inv,step.size = 0.
 }
 
 #Use leapfrog method to simulate a trajectory of Hamiltonian system
-gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 20){
+gen.Par = function(x.data,n.data,i.data,meanvec,varvec,theta,aux,Parten,Parten.inv,step.size = 0.05, steps = 8){
 	while(steps>0){
 	  #print(paste("Current running",26-steps,"in Leapfrog integrator"))
 		aux.half = aux - 0.5 * step.size * Ham.Parderiv(x.data=x.data,n.data=n.data,i.data=i.data,meanvec = meanvec,varvec = varvec,theta=theta,aux = aux, Parten = Parten,Parten.inv = Parten.inv)
